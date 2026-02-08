@@ -1,6 +1,8 @@
 import multer from "multer"
 import { parse } from "csv-parse"
 import { prisma } from "../db.js"
+import { setBatchemails } from "../redis.js";
+import { addBatchtoQueu } from "../queue.js";
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -62,20 +64,12 @@ export function registerUploadroutes(app) {
                     status: "pending"
                 }
             })
+            //1 set Batch emails
+            await setBatchemails(batch.id,emails)
+            //2 add Batch to queue
+            await addBatchtoQueu(batch.id)
+            //3 publish batch status 
             
-            // Create batch emails
-            await prisma.email.createMany({
-                data: emails.map((email) => ({
-                    batchId: batch.id,
-                    email
-                }))
-            })
-
-            res.json({
-                success: true,
-                batchId: batch.id,
-                totalEmails: emails.length
-            })
 
         } catch (error) {
             console.error("Upload error:", error)
